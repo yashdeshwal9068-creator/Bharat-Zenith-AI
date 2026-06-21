@@ -1,0 +1,9 @@
+{
+  "name": "bharat-nova-ai",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Bharat Nova AI — 7-engine AI chatbot (Gemini, Groq, OpenRouter, HuggingFace, Cohere, Fireworks, NVIDIA NIM) with automatic failsafe fallback, built and deployed on Vercel.",
+  "engines": {
+    "node": "20.x"
+  }
+}
