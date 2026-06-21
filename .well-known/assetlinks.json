@@ -1,0 +1,8 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "app.vercel.bharat_zenith_ai.twa",
+    "sha256_cert_fingerprints": ["5C:57:2F:16:D0:8F:22:C7:B5:50:78:98:1D:0B:4F:7B:4E:2C:D6:B6:10:B5:29:8C:6C:4F:19:C1:7A:53:D4:94"]
+  }
+}]
