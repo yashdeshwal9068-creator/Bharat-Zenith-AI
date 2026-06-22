@@ -138,11 +138,59 @@ async function callOpenAICompatible({ url, apiKey, model, messages, temperature,
 
 /* ════════════════════════════════════════════════════
    GOOGLE GEMINI — native REST generateContent API
+   ─────────────────────────────────────────────────
+   Key rotation: primary (GEMINI_API_KEY) is tried
+   first. On any failure — 429 quota, bad key, network
+   error — the error is logged and the EXACT same
+   request body is immediately retried with the backup
+   key (GEMINI_API_KEY_2). The frontend never sees the
+   retry; it only receives the final successful reply.
 ════════════════════════════════════════════════════ */
-async function callGemini(messages, temperature, max_tokens, timeoutMs, attachment) {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) throw new Error('Gemini: API key not set on the server.');
 
+/* Low-level helper: fires one HTTP request to Gemini
+   with the supplied apiKey and pre-built body object.
+   Throws a descriptive Error on any failure so the
+   caller can decide whether to retry. */
+async function callGeminiWithKey(apiKey, body, timeoutMs) {
+  let res;
+  try {
+    res = await fetchWithTimeout(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+      { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) },
+      timeoutMs
+    );
+  } catch (err) {
+    if (err?.name === 'AbortError') throw new Error(`Gemini: timed out after ${Math.round((timeoutMs || PROVIDER_TIMEOUT_MS) / 1000)}s.`);
+    throw new Error(`Gemini: request failed (${err?.message || 'network error'}).`);
+  }
+
+  if (!res.ok) {
+    const detail = await readErrorDetail(res);
+    throw new Error(`Gemini: HTTP ${res.status} — ${detail || 'request failed'}`);
+  }
+
+  const data = await res.json();
+  if (data?.promptFeedback?.blockReason) {
+    throw new Error(`Gemini: response blocked (${data.promptFeedback.blockReason}).`);
+  }
+  const parts = data?.candidates?.[0]?.content?.parts || [];
+  const text = parts.map(p => p.text || '').join('').trim();
+  if (!text) throw new Error('Gemini: returned an empty response.');
+  return text;
+}
+
+/* Public caller — builds the request body once, then
+   delegates to callGeminiWithKey with primary key,
+   automatically falling back to the backup key on
+   any error before propagating failure to the engine
+   loop above. */
+async function callGemini(messages, temperature, max_tokens, timeoutMs, attachment) {
+  const primaryKey = process.env.GEMINI_API_KEY;
+  const backupKey  = process.env.GEMINI_API_KEY_2;
+
+  if (!primaryKey) throw new Error('Gemini: API key not set on the server (GEMINI_API_KEY missing).');
+
+  // ── Build the request body (shared by both key attempts) ──────────
   let systemText = '';
   const contents = [];
   for (const m of flattenMessages(messages)) {
@@ -180,31 +228,24 @@ async function callGemini(messages, temperature, max_tokens, timeoutMs, attachme
     ...(systemText.trim() ? { systemInstruction: { parts: [{ text: systemText.trim() }] } } : {}),
   };
 
-  let res;
+  // ── Attempt 1: primary key ────────────────────────────────────────
   try {
-    res = await fetchWithTimeout(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
-      { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) },
-      timeoutMs
-    );
-  } catch (err) {
-    if (err?.name === 'AbortError') throw new Error(`Gemini: timed out after ${Math.round((timeoutMs || PROVIDER_TIMEOUT_MS) / 1000)}s.`);
-    throw new Error(`Gemini: request failed (${err?.message || 'network error'}).`);
+    return await callGeminiWithKey(primaryKey, body, timeoutMs);
+  } catch (primaryErr) {
+    // If there is no backup key configured, surface the error immediately
+    // rather than logging a confusing "switching to backup" message.
+    if (!backupKey) throw primaryErr;
+    console.log('Primary key failed, switching to backup key...', primaryErr?.message || String(primaryErr));
   }
 
-  if (!res.ok) {
-    const detail = await readErrorDetail(res);
-    throw new Error(`Gemini: HTTP ${res.status} — ${detail || 'request failed'}`);
+  // ── Attempt 2: backup key (GEMINI_API_KEY_2) ──────────────────────
+  try {
+    return await callGeminiWithKey(backupKey, body, timeoutMs);
+  } catch (backupErr) {
+    // Both keys exhausted — surface a clear combined error message so
+    // the engine-level fallback loop above can try the next provider.
+    throw new Error(`Gemini: both API keys failed. Last error: ${backupErr?.message || 'unknown'}`);
   }
-
-  const data = await res.json();
-  if (data?.promptFeedback?.blockReason) {
-    throw new Error(`Gemini: response blocked (${data.promptFeedback.blockReason}).`);
-  }
-  const parts = data?.candidates?.[0]?.content?.parts || [];
-  const text = parts.map(p => p.text || '').join('').trim();
-  if (!text) throw new Error('Gemini: returned an empty response.');
-  return text;
 }
 
 /* ════════════════════════════════════════════════════
