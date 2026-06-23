@@ -15,6 +15,10 @@
       "headers": { "Cache-Control": "no-cache, no-store, must-revalidate" }
     },
     {
+      "src": "/googlef7576a161da98eb7\\.html",
+      "dest": "/googlef7576a161da98eb7.html"
+    },
+    {
       "src": "/",
       "dest": "/index.html",
       "headers": { "Cache-Control": "no-cache, no-store, must-revalidate" }
