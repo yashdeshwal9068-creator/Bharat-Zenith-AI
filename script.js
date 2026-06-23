@@ -1,17 +1,23 @@
 /* ══════════════════════════════════════════
    ENGINE REGISTRY (must match api/server.js keys)
+   Order = "Intelligence Wise" ranking.
+   textOnly:true → engine cannot see images; these
+   4 get disabled in the dropdown while an image is
+   attached (see IMAGE-AWARE ENGINE LOCKING below).
 ══════════════════════════════════════════ */
 const ENGINES = [
-  { key:'gemini',      name:'Gemini',      sub:'Google · gemini-2.5-flash',           color:'#4285F4' },
-  { key:'groq',        name:'Groq',        sub:'gpt-oss-20b · ultra fast',             color:'#FF8C00' },
-  { key:'openrouter',  name:'OpenRouter',  sub:'auto free-model router',              color:'#8b5cf6' },
-  { key:'cohere',      name:'Cohere',      sub:'command-r-08-2024',                   color:'#39594D' },
-  { key:'fireworks',   name:'Fireworks',   sub:'Llama 3.1 8B',                        color:'#ff5e5e' },
-  { key:'nvidia',      name:'NVIDIA',      sub:'NIM · Llama 3.1 8B',                  color:'#76b900' },
-  { key:'huggingface', name:'HuggingFace', sub:'Llama 3.1 8B Instruct',               color:'#ffcc4d' },
-  { key:'mistral',     name:'Mistral',     sub:'open-mistral-7b · Pixtral Vision',    color:'#FF7000' },
+  { key:'gemini',       name:'Gemini',        sub:'Google · gemini-2.5-flash',          color:'#4285F4', textOnly:false },
+  { key:'githubmodels', name:'GitHub Models', sub:'gpt-4o-mini · OpenAI-compatible',     color:'#58A6FF', textOnly:false },
+  { key:'openrouter',   name:'OpenRouter',    sub:'auto free-model router',             color:'#8b5cf6', textOnly:false },
+  { key:'mistral',      name:'Mistral',       sub:'open-mistral-7b · Pixtral Vision',   color:'#FF7000', textOnly:false },
+  { key:'groq',         name:'Groq',          sub:'gpt-oss-20b · ultra fast',            color:'#FF8C00', textOnly:false },
+  { key:'sambanova',    name:'SambaNova',     sub:'Llama 4 Maverick · ultra fast',      color:'#EE2B69', textOnly:false },
+  { key:'nvidia',       name:'NVIDIA',        sub:'NIM · Llama 3.1 8B',                 color:'#76b900', textOnly:true },
+  { key:'huggingface',  name:'HuggingFace',   sub:'Llama 3.1 8B Instruct',              color:'#ffcc4d', textOnly:true },
+  { key:'cohere',       name:'Cohere',        sub:'command-r-08-2024',                  color:'#39594D', textOnly:true },
+  { key:'fireworks',    name:'Fireworks',     sub:'Llama 3.1 8B',                       color:'#ff5e5e', textOnly:true },
 ];
-const engineByKey = k => ENGINES.find(e => e.key === k) || ENGINES[1];
+const engineByKey = k => ENGINES.find(e => e.key === k) || ENGINES.find(e => e.key === 'groq') || ENGINES[0];
 
 let selectedEngine = localStorage.getItem('bn_engine') || 'groq';
 let currentUser = null;
@@ -36,21 +42,29 @@ function closeSidebar(){
 ══════════════════════════════════════════ */
 function renderEngineMenu(){
   const menu = document.getElementById('engineMenu');
-  menu.innerHTML = ENGINES.map(e => `
-    <div class="engine-opt ${e.key===selectedEngine?'active':''}" onclick="pickEngine('${e.key}')">
+  menu.innerHTML = ENGINES.map(e => {
+    const isLocked = engineLockedForImage && e.textOnly;
+    return `
+    <div class="engine-opt ${e.key===selectedEngine?'active':''} ${isLocked?'disabled':''}"
+         ${isLocked ? 'aria-disabled="true"' : `onclick="pickEngine('${e.key}')"`}>
       <span class="model-dot" style="background:${e.color}"></span>
       <div>
-        <div class="eo-name">${e.name}</div>
-        <div class="eo-sub">${e.sub}</div>
+        <div class="eo-name">${e.name}${isLocked ? ' <span class="eo-lock">🔒</span>' : ''}</div>
+        <div class="eo-sub">${isLocked ? 'Text-only · disabled for images' : e.sub}</div>
       </div>
     </div>
-  `).join('');
+  `;
+  }).join('');
 }
 function toggleEngineMenu(){
   renderEngineMenu();
   document.getElementById('engineMenu').classList.toggle('open');
 }
 function pickEngine(key){
+  if (engineLockedForImage) {
+    const target = engineByKey(key);
+    if (target && target.textOnly) return; // text-only engines are unselectable while an image is attached
+  }
   selectedEngine = key;
   localStorage.setItem('bn_engine', key);
   updatePillUI();
@@ -60,6 +74,33 @@ function updatePillUI(){
   const e = engineByKey(selectedEngine);
   document.getElementById('pillName').textContent = e.name;
   document.getElementById('pillDot').style.background = e.color;
+}
+
+/* ══════════════════════════════════════════
+   IMAGE-AWARE ENGINE LOCKING
+   ─────────────────────────────────────────
+   The 4 text-only engines (NVIDIA, HuggingFace,
+   Cohere, Fireworks) can't process images. As soon
+   as an image attachment is pending we disable them
+   in the dropdown. If one of them was already the
+   active selection, we auto-switch to Gemini so the
+   request actually reaches a vision-capable engine.
+   Clearing/removing the image re-enables all four.
+══════════════════════════════════════════ */
+let engineLockedForImage = false;
+
+function applyImageEngineLock(hasImage){
+  engineLockedForImage = !!hasImage;
+  if (engineLockedForImage) {
+    const current = engineByKey(selectedEngine);
+    if (current && current.textOnly) {
+      selectedEngine = 'gemini';
+      localStorage.setItem('bn_engine', 'gemini');
+      updatePillUI();
+      showToast('Switched to Google Gemini — the previously selected engine can\'t view images.');
+    }
+  }
+  renderEngineMenu();
 }
 document.addEventListener('click', (ev) => {
   const menu = document.getElementById('engineMenu');
@@ -171,10 +212,12 @@ async function handleFileSelect(ev){
 function setPendingAttachment(att){
   pendingAttachment = att;
   renderAttachPreview();
+  applyImageEngineLock(!!att.isImage);
 }
 function clearAttachment(){
   pendingAttachment = null;
   renderAttachPreview();
+  applyImageEngineLock(false);
 }
 function renderAttachPreview(){
   const wrap = document.getElementById('attachPreviewWrap');
