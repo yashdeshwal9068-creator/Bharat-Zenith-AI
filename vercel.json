@@ -30,7 +30,7 @@
     },
     { "handle": "filesystem" },
     {
-      "src": "/(.*)",
+      "src": "/((?!googlef7576a161da98eb7).*)",
       "dest": "/index.html",
       "headers": { "Cache-Control": "no-cache, no-store, must-revalidate" }
     }
