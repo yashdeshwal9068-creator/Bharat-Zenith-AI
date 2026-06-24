@@ -1,0 +1,37 @@
+{
+  "version": 2,
+  "buildCommand": "",
+  "outputDirectory": ".",
+  "routes": [
+    {
+      "src": "/sw\\.js",
+      "dest": "/sw.js",
+      "headers": { "Cache-Control": "no-cache, no-store, must-revalidate" }
+    },
+    {
+      "src": "/service-worker\\.js",
+      "dest": "/service-worker.js",
+      "headers": { "Cache-Control": "no-cache, no-store, must-revalidate" }
+    },
+    {
+      "src": "/googlef7576a161da98eb7\\.html",
+      "dest": "/googlef7576a161da98eb7.html"
+    },
+    {
+      "src": "/",
+      "dest": "/index.html",
+      "headers": { "Cache-Control": "no-cache, no-store, must-revalidate" }
+    },
+    {
+      "src": "/index\\.html",
+      "dest": "/index.html",
+      "headers": { "Cache-Control": "no-cache, no-store, must-revalidate" }
+    },
+    { "handle": "filesystem" },
+    {
+      "src": "/((?!googlef7576a161da98eb7).*)",
+      "dest": "/index.html",
+      "headers": { "Cache-Control": "no-cache, no-store, must-revalidate" }
+    }
+  ]
+}

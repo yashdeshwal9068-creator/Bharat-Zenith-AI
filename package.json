@@ -1,0 +1,9 @@
+{
+  "name": "bharat-nova-ai",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Bharat Nova AI — frontend PWA (static HTML/CSS/JS) hosted on Vercel. Talks to the 10-engine AI backend running separately on Render.",
+  "engines": {
+    "node": "20.x"
+  }
+}
