@@ -883,7 +883,7 @@ async function sendMessage(){
    then streams from /agent instead of a single POST/
    JSON round-trip to /api/server.
 ══════════════════════════════════════════ */
-const AGENT_URL = BACKEND_URL.replace(/\/[^/]+$/, '/agent');
+const AGENT_URL = new URL('/agent', BACKEND_URL).href;
 
 async function sendAgentMessage(){
   const input = document.getElementById('msgInput');
@@ -1073,6 +1073,10 @@ function renderManusSummary(subtasks){
   <div class="bsc-body" id="${id}">${rows}</div>
 </div>`;
 }
+
+/* ══════════════════════════════════════════
+   FIREBASE AUTH
+══════════════════════════════════════════ */
 (function initFirebaseAuth(){
   const fbCfg = {
     apiKey: "AIzaSyALc807O77-KGEYOnjpiFinC5zzDBN0EUk",
