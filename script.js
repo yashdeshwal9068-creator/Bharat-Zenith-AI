@@ -1,17 +1,25 @@
 /* ══════════════════════════════════════════
    BACKEND CONFIG — HYBRID ARCHITECTURE
    ─────────────────────────────────────────
-   The Express AI backend now lives on Render (persistent
+   The Express AI backend lives on Render (persistent
    server, no serverless timeout), separate from this
-   Vercel-hosted frontend. ⚠️ REPLACE THE PLACEHOLDER BELOW
-   with your real Render service URL once it's deployed
-   (Render dashboard → your service → the URL at the top,
-   e.g. https://bharat-nova-ai-backend.onrender.com).
+   Vercel-hosted frontend. BACKEND_URL is the bare origin
+   only — never append a path here. Every actual endpoint
+   below is derived from it explicitly, so there is no way
+   for a path to accidentally double up (e.g. '/agent/agent').
+   ⚠️ REPLACE THE ORIGIN BELOW if your Render service URL
+   ever changes (Render dashboard → your service → the URL
+   at the top).
 ══════════════════════════════════════════ */
-const BACKEND_URL = 'https://bharat-zenith-backend.onrender.com/agent';
+const BACKEND_URL = 'https://bharat-zenith-backend.onrender.com';
+
+// Endpoints — each is BACKEND_URL + exactly one path, defined once here
+// so there is a single source of truth and no possibility of doubling.
+const CHAT_URL  = `${BACKEND_URL}/api/server`; // legacy single-engine endpoint (app.post('/api/server') in server.js) — kept wired up, currently unused since sendMessage() always uses AGENT_URL below
+const AGENT_URL = `${BACKEND_URL}/agent`;       // Bharat Agent multi-engine SSE endpoint (app.post('/agent') in server.js) — what sendMessage() actually calls
 
 /* ══════════════════════════════════════════
-   ENGINE REGISTRY (must match api/server.js keys)
+   ENGINE REGISTRY (must match server.js keys)
    Order = "Intelligence Wise" ranking.
    textOnly:true → engine cannot see images; these
    4 get disabled in the dropdown while an image is
@@ -771,11 +779,12 @@ function onInputKeydown(ev){
 /* ══════════════════════════════════════════
    SEND MESSAGE — Bharat Agent is always-on: every single
    message, with no exceptions, is routed through the
-   multi-engine /agent pipeline below. The toggle button
-   next to the model pill is informational only now (see
-   toggleAgentMode) and can no longer disable this.
+   multi-engine /agent pipeline below (AGENT_URL, defined
+   at the top of this file with the other backend config).
+   The toggle button next to the model pill is informational
+   only now (see toggleAgentMode) and can no longer disable
+   this.
 ══════════════════════════════════════════ */
-const AGENT_URL = new URL('/agent', BACKEND_URL).href;
 
 async function sendMessage(){
   const input = document.getElementById('msgInput');
