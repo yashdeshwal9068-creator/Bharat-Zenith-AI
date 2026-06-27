@@ -8,7 +8,7 @@
    (Render dashboard → your service → the URL at the top,
    e.g. https://bharat-nova-ai-backend.onrender.com).
 ══════════════════════════════════════════ */
-const BACKEND_URL = 'https://bharat-zenith-backend.onrender.com/api/server';
+const BACKEND_URL = 'https://bharat-zenith-backend.onrender.com/agent';
 
 /* ══════════════════════════════════════════
    ENGINE REGISTRY (must match api/server.js keys)
