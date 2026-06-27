@@ -36,7 +36,6 @@ let currentUser = null;
 let chats = [];
 let activeChatId = null;
 let pendingAttachment = null; // { base64, mimeType, name, isImage, dataUrl } — current unsent attachment
-let agentModeOn = true; // ALWAYS ON — Bharat Agent is permanently active
 
 /* ══════════════════════════════════════════
    SIDEBAR
@@ -92,16 +91,14 @@ function updatePillUI(){
 /* ══════════════════════════════════════════
    BHARAT AGENT MODE — ALWAYS ON
    ─────────────────────────────────────────
-   Bharat Agent Mode is permanently active.
-   The toggle button is disabled and always
-   shows "ON". All queries are routed to the
-   backend '/agent' endpoint automatically.
-   The toggle function is kept for UI
-   compatibility but does nothing.
+   sendMessage() now unconditionally routes every message
+   through /agent (see below) — there is no single-engine
+   path left to toggle back to. This button is kept for
+   visual continuity and is informational only.
 ══════════════════════════════════════════ */
 function toggleAgentMode(){
-  // Bharat Agent is always on — toggle is disabled
-  showToast('🧬 Bharat Agent Mode is always active — multi-engine intelligence is permanently enabled.');
+  document.getElementById('agentToggle')?.classList.add('on');
+  showToast('🇮🇳 Bharat Agent is always active — every message is automatically broken into sub-tasks and routed across multiple engines for the best possible answer.');
 }
 
 /* ══════════════════════════════════════════
@@ -607,7 +604,7 @@ function renderMessages(){
       <div class="empty-state">
         <div class="big-icon">N</div>
         <h2>Bharat Zenith AI</h2>
-        <p>Pick an engine from the pill in the input bar and start chatting. If your chosen engine ever fails, Bharat Agent automatically switches to a backup — no downtime.</p>
+        <p>Pick an engine from the pill in the input bar and start chatting. If your chosen engine ever fails, Nova automatically switches to a backup — no downtime.</p>
       </div>`;
     return;
   }
@@ -676,7 +673,7 @@ function renderBubble(m, idx){
   // 5. Build optional blocks
   const thoughtHtml = thoughtText ? renderThoughtAccordion(thoughtText) : '';
   const stepsHtml   = stepsText   ? renderStepsContainer(stepsText)     : '';
-  const bharatAgentHtml = m.agentSubtasks ? renderBharatAgentSummary(m.agentSubtasks) : '';
+  const manusHtml   = m.agentSubtasks ? renderBharatAgentSummary(m.agentSubtasks) : '';
   const badgeHtml   = renderPerfBadge(m);
   const copyBtn     = `<button class="copy-btn" onclick="copyMsg(${idx})">Copy</button>`;
 
@@ -684,7 +681,7 @@ function renderBubble(m, idx){
     ${avatar}
     <div class="bubble-col">
       ${attachmentHtml}
-      ${bharatAgentHtml}
+      ${manusHtml}
       ${thoughtHtml}
       ${stepsHtml}
       ${mainHtml ? `<div class="bubble">${mainHtml}</div>` : ''}
@@ -772,37 +769,26 @@ function onInputKeydown(ev){
 }
 
 /* ══════════════════════════════════════════
-   SEND MESSAGE → Always routes to Bharat Agent (/agent)
-   ─────────────────────────────────────────
-   Bharat Agent Mode is permanently active.
-   All user queries are sent to the backend
-   '/agent' endpoint for multi-engine
-   decomposition and synthesis.
-══════════════════════════════════════════ */
-async function sendMessage(){
-  // ALWAYS route to Bharat Agent — no single-engine mode
-  return sendBharatAgentMessage();
-}
-
-/* ══════════════════════════════════════════
-   BHARAT AGENT — multi-part breakdown,
-   distributed task routing, live SSE feed
-   ─────────────────────────────────────────
-   All user queries are processed through the
-   Bharat Agent pipeline for multi-engine
-   intelligence and automatic failover.
+   SEND MESSAGE — Bharat Agent is always-on: every single
+   message, with no exceptions, is routed through the
+   multi-engine /agent pipeline below. The toggle button
+   next to the model pill is informational only now (see
+   toggleAgentMode) and can no longer disable this.
 ══════════════════════════════════════════ */
 const AGENT_URL = new URL('/agent', BACKEND_URL).href;
 
-async function sendBharatAgentMessage(){
+async function sendMessage(){
   const input = document.getElementById('msgInput');
   const text = input.value.trim();
-  const attachment = pendingAttachment;
+  const attachment = pendingAttachment; // snapshot — current turn's attachment only
   if (!text && !attachment) return;
 
   let chat = getActiveChat();
   if (!chat) { newChat(); chat = getActiveChat(); }
 
+  // Compact record kept in chat history for re-rendering the bubble.
+  // Images keep their (already-compressed) preview; generic files only
+  // keep their name/type, never re-sent on later turns.
   const attachmentForHistory = attachment ? {
     isImage: attachment.isImage,
     mimeType: attachment.mimeType,
@@ -823,7 +809,7 @@ async function sendBharatAgentMessage(){
   autoGrow(input);
   clearAttachment();
   document.getElementById('sendBtn').disabled = true;
-  showBharatAgentFeed();
+  showAgentFeed();
 
   const _perfStart = performance.now();
   try {
@@ -835,6 +821,11 @@ async function sendBharatAgentMessage(){
         temperature: 0.7,
         max_tokens: 4096,
         messages: chat.messages.map(m => {
+          // For every past user turn that had an attachment, append a short
+          // context note so the model retains awareness of what was sent.
+          // We cannot re-transmit the raw binary data for prior turns (it
+          // would bloat the payload on every follow-up), so a plain-text
+          // summary is the right approach for maintaining multi-turn context.
           let content = m.content || '';
           if (m.role === 'user' && m.attachment) {
             if (m.attachment.isImage) {
@@ -851,7 +842,7 @@ async function sendBharatAgentMessage(){
       }),
     });
 
-    if (!res.ok || !res.body) throw new Error(`Bharat Agent endpoint returned HTTP ${res.status}`);
+    if (!res.ok || !res.body) throw new Error(`Agent endpoint returned HTTP ${res.status}`);
 
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
@@ -870,11 +861,11 @@ async function sendBharatAgentMessage(){
         let evt;
         try { evt = JSON.parse(line.slice(5).trim()); } catch { continue; }
         if (evt.type === 'log') {
-          appendBharatAgentLog(evt.text, 'info');
+          appendAgentLog(evt.text, 'info');
         } else if (evt.type === 'subtask_attempt') {
-          appendBharatAgentLog(`→ Part ${evt.id} routed to ${evt.engineName}`, 'pending', evt.id);
+          appendAgentLog(`→ Part ${evt.id} routed to ${evt.engineName}`, 'pending', evt.id);
         } else if (evt.type === 'subtask_result') {
-          appendBharatAgentLog(
+          appendAgentLog(
             evt.status === 'success' ? `✓ Part ${evt.id} done` : `✗ Part ${evt.id} failed — all engines exhausted`,
             evt.status === 'success' ? 'success' : 'failed',
             evt.id
@@ -886,10 +877,10 @@ async function sendBharatAgentMessage(){
     }
 
     const _timing = ((performance.now() - _perfStart) / 1000).toFixed(1);
-    hideBharatAgentFeed();
+    hideAgentFeed();
 
     if (!finalData || finalData.error) {
-      chat.messages.push({ role:'assistant', content:`⚠️ ${finalData?.message || 'Bharat Agent pipeline failed.'}`, error:true, timing:_timing });
+      chat.messages.push({ role:'assistant', content:`⚠️ ${finalData?.message || 'Agent pipeline failed.'}`, error:true, timing:_timing });
       showToast('Bharat Agent pipeline failed. Check Render logs.');
     } else {
       chat.messages.push({
@@ -905,8 +896,8 @@ async function sendBharatAgentMessage(){
     }
   } catch (err) {
     const _timing = ((performance.now() - _perfStart) / 1000).toFixed(1);
-    hideBharatAgentFeed();
-    chat.messages.push({ role:'assistant', content:`⚠️ Bharat Agent network error: ${err?.message || 'request failed'}`, error:true, timing:_timing });
+    hideAgentFeed();
+    chat.messages.push({ role:'assistant', content:`⚠️ Agent network error: ${err?.message || 'request failed'}`, error:true, timing:_timing });
   }
 
   saveChats();
@@ -914,9 +905,9 @@ async function sendBharatAgentMessage(){
   document.getElementById('sendBtn').disabled = false;
 }
 
-/* Live execution feed — appended as a temporary row while
-   /agent streams its SSE events in. */
-function showBharatAgentFeed(){
+/* ══════════════════════════════════════════
+   BHARAT AGENT — live execution feed UI
+function showAgentFeed(){
   const inner = document.getElementById('chatInner');
   const row = document.createElement('div');
   row.className = 'msg-row ai';
@@ -924,47 +915,48 @@ function showBharatAgentFeed(){
   row.innerHTML = `
     <div class="avatar ai">N</div>
     <div class="bubble-col">
-      <div class="bharat-agent-feed" id="bharatAgentFeed">
-        <div class="bharat-agent-feed-header">
-          <span class="bharat-agent-icon">🧬</span>
-          <span class="bharat-agent-label">Bharat Agent</span>
-          <span class="bharat-agent-live-dot"></span>
+      <div class="manus-feed" id="manusFeed">
+        <div class="manus-feed-header">
+          <span class="manus-icon">🧬</span>
+          <span class="manus-label">Bharat Agent</span>
+          <span class="manus-live-dot"></span>
         </div>
-        <div class="bharat-agent-feed-body" id="bharatAgentFeedBody"></div>
+        <div class="manus-feed-body" id="manusFeedBody"></div>
       </div>
     </div>`;
   inner.appendChild(row);
   scrollChatToBottom(true);
 }
-function appendBharatAgentLog(text, status, subtaskId){
-  const body = document.getElementById('bharatAgentFeedBody');
+function appendAgentLog(text, status, subtaskId){
+  const body = document.getElementById('manusFeedBody');
   if (!body) return;
   if (subtaskId != null) {
-    const existing = document.getElementById('bharatAgentLine-' + subtaskId);
+    const existing = document.getElementById('manusLine-' + subtaskId);
     if (existing) {
-      existing.className = 'bharat-agent-line ' + (status || 'info');
-      existing.querySelector('.bharat-agent-line-text').textContent = text;
+      existing.className = 'manus-line ' + (status || 'info');
+      existing.querySelector('.manus-line-text').textContent = text;
       scrollChatToBottom();
       return;
     }
   }
   const line = document.createElement('div');
-  line.className = 'bharat-agent-line ' + (status || 'info');
-  if (subtaskId != null) line.id = 'bharatAgentLine-' + subtaskId;
-  line.innerHTML = `<span class="bharat-agent-badge"></span><span class="bharat-agent-line-text"></span>`;
-  line.querySelector('.bharat-agent-line-text').textContent = text;
+  line.className = 'manus-line ' + (status || 'info');
+  if (subtaskId != null) line.id = 'manusLine-' + subtaskId;
+  line.innerHTML = `<span class="manus-badge"></span><span class="manus-line-text"></span>`;
+  line.querySelector('.manus-line-text').textContent = text;
   body.appendChild(line);
   scrollChatToBottom();
 }
-function hideBharatAgentFeed(){
+function hideAgentFeed(){
   document.getElementById('agentFeedRow')?.remove();
 }
 
 /* Collapsible post-hoc breakdown summary, shown inside the final bubble
-   for any Bharat Agent answer that actually decomposed into 2+ sub-tasks. */
+   for any agent-mode answer that actually decomposed into 2+ sub-tasks.
+   Reuses the existing .bharat-steps-container / .bsc-* theme classes. */
 function renderBharatAgentSummary(subtasks){
   if (!subtasks || subtasks.length < 2) return '';
-  const id = 'bas' + Math.random().toString(36).slice(2, 8);
+  const id = 'mns' + Math.random().toString(36).slice(2, 8);
   const rows = subtasks.map(s => {
     const q = escapeHtml((s.question || '').slice(0, 90)) + (s.question && s.question.length > 90 ? '…' : '');
     const status = s.failed
@@ -1082,12 +1074,7 @@ function renderBharatAgentSummary(subtasks){
 ══════════════════════════════════════════ */
 updatePillUI();
 renderEngineMenu();
-// Bharat Agent is always on — force the toggle UI to reflect this
-const agentToggleEl = document.getElementById('agentToggle');
-if (agentToggleEl) {
-  agentToggleEl.classList.add('on');
-  agentToggleEl.title = 'Bharat Agent Mode — Always Active';
-}
+document.getElementById('agentToggle')?.classList.add('on');
 
 /* ══════════════════════════════════════════
    PWA: INSTALL APP BUTTON
