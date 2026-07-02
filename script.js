@@ -40,9 +40,9 @@ const ENGINES = [
 const engineByKey = k => ENGINES.find(e => e.key === k) || ENGINES.find(e => e.key === 'groq') || ENGINES[0];
 
 let selectedEngine = localStorage.getItem('bz_engine') || 'groq';
-let currentUser = null;
-let chats = [];
-let activeChatId = null;
+let currentUser    = null;
+let chats          = [];
+let activeChatId   = null;
 let pendingAttachment = null; // { base64, mimeType, name, isImage, dataUrl } — current unsent attachment
 
 /* ══════════════════════════════════════════
@@ -149,7 +149,7 @@ document.addEventListener('click', (ev) => {
 function toggleAttachMenu(ev){
   if (ev) ev.stopPropagation();
   const menu = document.getElementById('attachMenu');
-  const btn = document.getElementById('plusBtn');
+  const btn  = document.getElementById('plusBtn');
   const willOpen = !menu.classList.contains('open');
   menu.classList.toggle('open', willOpen);
   btn.classList.toggle('active', willOpen);
@@ -165,9 +165,9 @@ document.addEventListener('click', (ev) => {
 function triggerPicker(kind){
   document.getElementById('attachMenu').classList.remove('open');
   document.getElementById('plusBtn').classList.remove('active');
-  if (kind === 'photo') document.getElementById('fileInputPhoto').click();
+  if (kind === 'photo')       document.getElementById('fileInputPhoto').click();
   else if (kind === 'camera') document.getElementById('fileInputCamera').click();
-  else document.getElementById('fileInputFile').click();
+  else                        document.getElementById('fileInputFile').click();
 }
 
 /* ══════════════════════════════════════════
@@ -177,13 +177,13 @@ function triggerPicker(kind){
    small and fast even from a 12MP phone camera.
    Generic files are read as-is (size-capped).
 ══════════════════════════════════════════ */
-const MAX_RAW_FILE_BYTES = 6 * 1024 * 1024;      // pre-read cap for non-image files
-const MAX_ATTACHMENT_BASE64_CHARS = 8000000;      // ~6MB raw after base64 inflation
+const MAX_RAW_FILE_BYTES          = 6 * 1024 * 1024; // pre-read cap for non-image files
+const MAX_ATTACHMENT_BASE64_CHARS = 8000000;           // ~6MB raw after base64 inflation
 
 function fileToBase64(file){
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result).split(',')[1] || '');
+    reader.onload  = () => resolve(String(reader.result).split(',')[1] || '');
     reader.onerror = () => reject(new Error('Could not read the file.'));
     reader.readAsDataURL(file);
   });
@@ -198,18 +198,19 @@ function compressImageToBase64(file){
         let { width, height } = img;
         if (width > MAX_EDGE || height > MAX_EDGE) {
           if (width >= height) { height = Math.round(height * (MAX_EDGE / width)); width = MAX_EDGE; }
-          else { width = Math.round(width * (MAX_EDGE / height)); height = MAX_EDGE; }
+          else                 { width  = Math.round(width  * (MAX_EDGE / height)); height = MAX_EDGE; }
         }
         const canvas = document.createElement('canvas');
-        canvas.width = width; canvas.height = height;
-        const ctx = canvas.getContext('2d');
+        canvas.width  = width;
+        canvas.height = height;
+        const ctx     = canvas.getContext('2d');
         ctx.drawImage(img, 0, 0, width, height);
         const mimeType = 'image/jpeg';
-        const dataUrl = canvas.toDataURL(mimeType, 0.78);
+        const dataUrl  = canvas.toDataURL(mimeType, 0.78);
         resolve({ base64: dataUrl.split(',')[1] || '', mimeType, dataUrl });
       };
       img.onerror = () => reject(new Error('Could not decode that image.'));
-      img.src = String(reader.result);
+      img.src     = String(reader.result);
     };
     reader.onerror = () => reject(new Error('Could not read the image.'));
     reader.readAsDataURL(file);
@@ -217,7 +218,7 @@ function compressImageToBase64(file){
 }
 async function handleFileSelect(ev){
   const input = ev.target;
-  const file = input.files && input.files[0];
+  const file  = input.files && input.files[0];
   input.value = ''; // reset so the same file can be re-picked later
   if (!file) return;
 
@@ -254,7 +255,7 @@ function clearAttachment(){
 }
 function renderAttachPreview(){
   const wrap = document.getElementById('attachPreviewWrap');
-  const box = document.getElementById('attachPreview');
+  const box  = document.getElementById('attachPreview');
   if (!pendingAttachment) { wrap.style.display = 'none'; box.innerHTML = ''; return; }
   wrap.style.display = 'block';
   box.innerHTML = pendingAttachment.isImage
@@ -276,11 +277,11 @@ function renderAttachPreview(){
 ══════════════════════════════════════════ */
 function showToast(msg, ms=5000){
   const wrap = document.getElementById('toastWrap');
-  const el = document.createElement('div');
-  el.className = 'toast';
+  const el   = document.createElement('div');
+  el.className   = 'toast';
   el.textContent = msg;
   wrap.appendChild(el);
-  setTimeout(() => { el.style.opacity='0'; el.style.transition='opacity .3s'; setTimeout(()=>el.remove(),300); }, ms);
+  setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity .3s'; setTimeout(() => el.remove(), 300); }, ms);
 }
 
 /* ══════════════════════════════════════════
@@ -311,7 +312,7 @@ function _resetCodeStore() {
    BHARAT TAG EXTRACTOR
 ══════════════════════════════════════════ */
 function extractTag(raw, tagName) {
-  const re = new RegExp('<' + tagName + '>[\\s\\S]*?<\\/' + tagName + '>', 'i');
+  const re    = new RegExp('<' + tagName + '>[\\s\\S]*?<\\/' + tagName + '>', 'i');
   const match = raw.match(re);
   if (!match) return { content: null, stripped: raw };
   const inner = match[0]
@@ -327,11 +328,11 @@ function extractTag(raw, tagName) {
 ══════════════════════════════════════════ */
 function htmlDecode(s) {
   return s
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g,  '&')
+    .replace(/&lt;/g,   '<')
+    .replace(/&gt;/g,   '>')
     .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
+    .replace(/&#39;/g,  "'")
     .replace(/&#x27;/g, "'");
 }
 
@@ -357,7 +358,7 @@ function toggleAccordion(id) {
   const body = document.getElementById(id);
   if (!body) return;
   const isOpen = body.classList.toggle('open');
-  const hdr = body.previousElementSibling;
+  const hdr    = body.previousElementSibling;
   if (hdr) {
     const chev = hdr.querySelector('.bta-chevron,.bsc-chevron');
     if (chev) chev.classList.toggle('open', isOpen);
@@ -368,7 +369,7 @@ function toggleAccordion(id) {
    RENDER BHARAT THOUGHT ACCORDION
 ══════════════════════════════════════════ */
 function renderThoughtAccordion(thoughtText) {
-  const id = 'bta' + Math.random().toString(36).slice(2, 8);
+  const id    = 'bta' + Math.random().toString(36).slice(2, 8);
   const inner = thoughtText ? marked.parse(thoughtText) : '';
   return `<div class="bharat-thought-accordion">
   <div class="bta-header" onclick="toggleAccordion('${id}')">
@@ -386,7 +387,7 @@ function renderThoughtAccordion(thoughtText) {
    RENDER BHARAT STEPS CONTAINER
 ══════════════════════════════════════════ */
 function renderStepsContainer(stepsText) {
-  const id = 'bsc' + Math.random().toString(36).slice(2, 8);
+  const id    = 'bsc' + Math.random().toString(36).slice(2, 8);
   const steps = stepsText.split('\n').map(s => s.trim()).filter(s => s.length > 1);
   const count = steps.length;
   const stepsHtml = steps.map(s =>
@@ -421,9 +422,9 @@ function getArtifactFilename(lang) {
 }
 
 function renderArtifact(code, lang) {
-  const codeId  = _storeCode(code);
-  const filename = getArtifactFilename(lang);
-  const l = (lang || '').toLowerCase();
+  const codeId    = _storeCode(code);
+  const filename  = getArtifactFilename(lang);
+  const l         = (lang || '').toLowerCase();
   const previewable = ['html', 'css', 'javascript', 'js'].includes(l);
   return `<div class="artifact-wrap">
   <div class="artifact-bar">
@@ -442,16 +443,16 @@ function renderArtifact(code, lang) {
 window.copyArtifact = function(btn, id) {
   const code = _codeStore[id] || '';
   navigator.clipboard?.writeText(code).then(() => {
-    const orig = btn.innerHTML;
-    btn.innerHTML = '✅ Copied';
+    const orig     = btn.innerHTML;
+    btn.innerHTML  = '✅ Copied';
     setTimeout(() => { btn.innerHTML = orig; }, 2000);
   });
 };
 window.downloadArtifact = function(id, filename) {
   const code = _codeStore[id] || '';
   const blob = new Blob([code], { type: 'text/plain' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = URL.createObjectURL(blob);
   a.download = filename;
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
@@ -468,9 +469,11 @@ window.previewArtifact = function(id, lang) {
   }
   document.getElementById('previewFrame').srcdoc = srcdoc;
   document.getElementById('previewModal').classList.add('open');
+  document.body.classList.add('artifact-split');
 };
 window.closePreview = function() {
   document.getElementById('previewModal').classList.remove('open');
+  document.body.classList.remove('artifact-split');
   setTimeout(() => { document.getElementById('previewFrame').srcdoc = ''; }, 300);
 };
 
@@ -504,13 +507,11 @@ function renderPerfBadge(m) {
 function renderContent(raw) {
   if (!raw) return '';
 
-  // Stash for extracted math expressions
   const mathStore = [];
 
   function protect(type, math) {
     const id = mathStore.length;
     mathStore.push({ type, math });
-    // Null-byte delimiters — invisible to Marked and safe in HTML
     return `\x00MATH${id}\x00`;
   }
 
@@ -541,7 +542,6 @@ function renderContent(raw) {
         output: 'html',
       });
     } catch (e) {
-      // Fallback: show the raw LaTeX in a code tag so it's still readable
       return `<code class="math-err">${escapeHtml(math)}</code>`;
     }
   });
@@ -606,7 +606,7 @@ function renderHistory(){
 function renderMessages(){
   _resetCodeStore();
   const inner = document.getElementById('chatInner');
-  const chat = getActiveChat();
+  const chat  = getActiveChat();
   if (!chat || !chat.messages.length) {
     inner.innerHTML = `
       <div class="empty-state">
@@ -617,7 +617,6 @@ function renderMessages(){
     return;
   }
   inner.innerHTML = chat.messages.map((m, i) => renderBubble(m, i)).join('');
-  // KaTeX is synchronous — no post-render typeset call needed
   scrollChatToBottom(true);
 }
 function renderBubble(m, idx){
@@ -655,14 +654,14 @@ function renderBubble(m, idx){
   let raw = m.content || '';
 
   // 1. Extract <bharat_thought>
-  const tResult = extractTag(raw, 'bharat_thought');
+  const tResult    = extractTag(raw, 'bharat_thought');
   const thoughtText = tResult.content;
-  raw = tResult.stripped;
+  raw              = tResult.stripped;
 
   // 2. Extract <bharat_steps>
-  const sResult = extractTag(raw, 'bharat_steps');
+  const sResult   = extractTag(raw, 'bharat_steps');
   const stepsText = sResult.content;
-  raw = sResult.stripped;
+  raw             = sResult.stripped;
 
   // 3. Run remaining text through Markdown renderer
   let mainHtml = renderContent(raw);
@@ -717,12 +716,12 @@ function copyMsg(idx){
 }
 let _typingInterval = null;
 function showTyping(userText){
-  const inner = document.getElementById('chatInner');
+  const inner  = document.getElementById('chatInner');
   const intent = detectIntent(userText || '');
   const msgs   = INTENT_MSGS[intent];
-  const row = document.createElement('div');
+  const row    = document.createElement('div');
   row.className = 'msg-row ai';
-  row.id = 'typingRow';
+  row.id        = 'typingRow';
   row.innerHTML = `
     <div class="avatar ai">N</div>
     <div class="bubble-col">
@@ -781,28 +780,34 @@ function onInputKeydown(ev){
    message, with no exceptions, is routed through the
    multi-engine /agent pipeline below (AGENT_URL, defined
    at the top of this file with the other backend config).
-   The toggle button next to the model pill is informational
-   only now (see toggleAgentMode) and can no longer disable
-   this.
-══════════════════════════════════════════ */
 
+   CHECKPOINT 3 — PAYLOAD FORMAT:
+   The body sent to AGENT_URL matches exactly what
+   app.post('/agent') in server.js reads from req.body:
+     { engine, temperature, max_tokens, messages, attachment? }
+
+   STREAM READER:
+   The while-loop below processes incoming SSE chunks
+   without an infinite-silence risk — every iteration
+   awaits reader.read() which resolves when data arrives
+   or when done:true signals the server has closed the
+   stream. The inner JSON.parse try/catch only skips
+   malformed lines; it never silences the outer loop.
+══════════════════════════════════════════ */
 async function sendMessage(){
-  const input = document.getElementById('msgInput');
-  const text = input.value.trim();
+  const input      = document.getElementById('msgInput');
+  const text       = input.value.trim();
   const attachment = pendingAttachment; // snapshot — current turn's attachment only
   if (!text && !attachment) return;
 
   let chat = getActiveChat();
   if (!chat) { newChat(); chat = getActiveChat(); }
 
-  // Compact record kept in chat history for re-rendering the bubble.
-  // Images keep their (already-compressed) preview; generic files only
-  // keep their name/type, never re-sent on later turns.
   const attachmentForHistory = attachment ? {
-    isImage: attachment.isImage,
+    isImage:  attachment.isImage,
     mimeType: attachment.mimeType,
-    name: attachment.name,
-    dataUrl: attachment.isImage ? attachment.dataUrl : null,
+    name:     attachment.name,
+    dataUrl:  attachment.isImage ? attachment.dataUrl : null,
   } : null;
 
   chat.messages.push({ role:'user', content:text, attachment: attachmentForHistory });
@@ -818,31 +823,32 @@ async function sendMessage(){
   autoGrow(input);
   clearAttachment();
   document.getElementById('sendBtn').disabled = true;
-  showAgentFeed();
 
   const _perfStart = performance.now();
+
   try {
+    // showAgentFeed is now inside try so any unexpected error re-enables the send button
+    showAgentFeed();
+
+    // ── CHECKPOINT 3: payload format exactly matches server.js app.post('/agent') ──
     const res = await fetch(AGENT_URL, {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        engine: selectedEngine,
+        engine:      selectedEngine,
         temperature: 0.7,
-        max_tokens: 4096,
+        max_tokens:  4096,
         messages: chat.messages.map(m => {
           // For every past user turn that had an attachment, append a short
           // context note so the model retains awareness of what was sent.
-          // We cannot re-transmit the raw binary data for prior turns (it
-          // would bloat the payload on every follow-up), so a plain-text
-          // summary is the right approach for maintaining multi-turn context.
           let content = m.content || '';
           if (m.role === 'user' && m.attachment) {
             if (m.attachment.isImage) {
               const tag = `[This message included an attached image (${m.attachment.mimeType || 'image'})]`;
-              content = content ? `${content}\n${tag}` : tag;
+              content   = content ? `${content}\n${tag}` : tag;
             } else if (m.attachment.name) {
               const tag = `[This message included an attached file: "${m.attachment.name}" (${m.attachment.mimeType || 'file'})]`;
-              content = content ? `${content}\n${tag}` : tag;
+              content   = content ? `${content}\n${tag}` : tag;
             }
           }
           return { role: m.role, content };
@@ -853,22 +859,38 @@ async function sendMessage(){
 
     if (!res.ok || !res.body) throw new Error(`Agent endpoint returned HTTP ${res.status}`);
 
-    const reader = res.body.getReader();
+    // ── CHECKPOINT 3: STREAM READER — processes SSE chunks without falling
+    // into an infinite silent catch block. The while loop exits cleanly on
+    // done:true (stream closed by server). Inner try/catch only skips
+    // individual malformed JSON lines; the outer loop continues normally. ──
+    const reader  = res.body.getReader();
     const decoder = new TextDecoder();
-    let buf = '';
+    let buf       = '';
     let finalData = null;
 
     while (true) {
       const { value, done } = await reader.read();
       if (done) break;
-      buf += decoder.decode(value, { stream:true });
+
+      buf += decoder.decode(value, { stream: true });
+
+      // SSE messages are separated by blank lines (\n\n).
+      // Split on that boundary; keep any trailing incomplete chunk in buf.
       const chunks = buf.split('\n\n');
-      buf = chunks.pop(); // keep the possibly-incomplete trailing chunk buffered
+      buf = chunks.pop(); // the last element is the possibly-incomplete fragment
+
       for (const chunk of chunks) {
+        // Each SSE message may have multiple lines; find the data: line.
         const line = chunk.split('\n').find(l => l.startsWith('data:'));
-        if (!line) continue;
+        if (!line) continue; // SSE comment (starts with ':') or blank — skip
+
         let evt;
-        try { evt = JSON.parse(line.slice(5).trim()); } catch { continue; }
+        try {
+          evt = JSON.parse(line.slice(5).trim()); // 'data:' is 5 chars
+        } catch {
+          continue; // malformed JSON on this line only — outer loop continues
+        }
+
         if (evt.type === 'log') {
           appendAgentLog(evt.text, 'info');
         } else if (evt.type === 'subtask_attempt') {
@@ -889,24 +911,34 @@ async function sendMessage(){
     hideAgentFeed();
 
     if (!finalData || finalData.error) {
-      chat.messages.push({ role:'assistant', content:`⚠️ ${finalData?.message || 'Agent pipeline failed.'}`, error:true, timing:_timing });
+      chat.messages.push({
+        role:    'assistant',
+        content: `⚠️ ${finalData?.message || 'Agent pipeline failed.'}`,
+        error:   true,
+        timing:  _timing,
+      });
       showToast('Bharat Agent pipeline failed. Check Render logs.');
     } else {
       chat.messages.push({
-        role:'assistant',
-        content: finalData.reply,
-        engine: finalData.engine,
-        engineName: finalData.engineName,
-        fallback: finalData.engine !== finalData.requestedEngine,
-        requestedEngineName: finalData.requestedEngineName,
-        timing: _timing,
-        agentSubtasks: finalData.subtasks,
+        role:                 'assistant',
+        content:              finalData.reply,
+        engine:               finalData.engine,
+        engineName:           finalData.engineName,
+        fallback:             finalData.engine !== finalData.requestedEngine,
+        requestedEngineName:  finalData.requestedEngineName,
+        timing:               _timing,
+        agentSubtasks:        finalData.subtasks,
       });
     }
   } catch (err) {
     const _timing = ((performance.now() - _perfStart) / 1000).toFixed(1);
     hideAgentFeed();
-    chat.messages.push({ role:'assistant', content:`⚠️ Agent network error: ${err?.message || 'request failed'}`, error:true, timing:_timing });
+    chat.messages.push({
+      role:    'assistant',
+      content: `⚠️ Agent network error: ${err?.message || 'request failed'}`,
+      error:   true,
+      timing:  _timing,
+    });
   }
 
   saveChats();
@@ -916,11 +948,18 @@ async function sendMessage(){
 
 /* ══════════════════════════════════════════
    BHARAT AGENT — live execution feed UI
+   ─────────────────────────────────────────
+   BUG FIX: this section header comment was previously left
+   unclosed (missing its closing delimiter), causing the JS
+   parser to treat showAgentFeed, appendAgentLog, and
+   hideAgentFeed as commented-out dead code. All three
+   functions are now fully live and callable.
+══════════════════════════════════════════ */
 function showAgentFeed(){
   const inner = document.getElementById('chatInner');
-  const row = document.createElement('div');
+  const row   = document.createElement('div');
   row.className = 'msg-row ai';
-  row.id = 'agentFeedRow';
+  row.id        = 'agentFeedRow';
   row.innerHTML = `
     <div class="avatar ai">N</div>
     <div class="bubble-col">
@@ -948,7 +987,7 @@ function appendAgentLog(text, status, subtaskId){
       return;
     }
   }
-  const line = document.createElement('div');
+  const line    = document.createElement('div');
   line.className = 'manus-line ' + (status || 'info');
   if (subtaskId != null) line.id = 'manusLine-' + subtaskId;
   line.innerHTML = `<span class="manus-badge"></span><span class="manus-line-text"></span>`;
@@ -965,9 +1004,9 @@ function hideAgentFeed(){
    Reuses the existing .bharat-steps-container / .bsc-* theme classes. */
 function renderBharatAgentSummary(subtasks){
   if (!subtasks || subtasks.length < 2) return '';
-  const id = 'mns' + Math.random().toString(36).slice(2, 8);
+  const id   = 'mns' + Math.random().toString(36).slice(2, 8);
   const rows = subtasks.map(s => {
-    const q = escapeHtml((s.question || '').slice(0, 90)) + (s.question && s.question.length > 90 ? '…' : '');
+    const q      = escapeHtml((s.question || '').slice(0, 90)) + (s.question && s.question.length > 90 ? '…' : '');
     const status = s.failed
       ? '<span style="color:var(--danger)">failed</span>'
       : escapeHtml(s.engineName || '') + (s.failedOver ? ' <span style="color:var(--accent2)">(failover)</span>' : '');
@@ -988,13 +1027,13 @@ function renderBharatAgentSummary(subtasks){
 ══════════════════════════════════════════ */
 (function initFirebaseAuth(){
   const fbCfg = {
-    apiKey: "AIzaSyALc807O77-KGEYOnjpiFinC5zzDBN0EUk",
-    authDomain: "bharat-ai-chatbot-7a1fa.firebaseapp.com",
-    projectId: "bharat-ai-chatbot-7a1fa",
-    storageBucket: "bharat-ai-chatbot-7a1fa.firebasestorage.app",
+    apiKey:            "AIzaSyALc807O77-KGEYOnjpiFinC5zzDBN0EUk",
+    authDomain:        "bharat-ai-chatbot-7a1fa.firebaseapp.com",
+    projectId:         "bharat-ai-chatbot-7a1fa",
+    storageBucket:     "bharat-ai-chatbot-7a1fa.firebasestorage.app",
     messagingSenderId: "732391672860",
-    appId: "1:732391672860:web:c7a5f41559bab298a0e3d9",
-    measurementId: "G-ZEPZYFMKL0"
+    appId:             "1:732391672860:web:c7a5f41559bab298a0e3d9",
+    measurementId:     "G-ZEPZYFMKL0",
   };
   firebase.initializeApp(fbCfg);
   const auth = firebase.auth();
@@ -1005,9 +1044,9 @@ function renderBharatAgentSummary(subtasks){
     if (user) {
       screen.style.display = 'none';
       currentUser = user;
-      const name = user.displayName || (user.email ? user.email.split('@')[0] : 'User');
-      document.getElementById('sbUserAv').textContent = name.charAt(0).toUpperCase();
-      document.getElementById('sbUserName').textContent = name;
+      const name  = user.displayName || (user.email ? user.email.split('@')[0] : 'User');
+      document.getElementById('sbUserAv').textContent    = name.charAt(0).toUpperCase();
+      document.getElementById('sbUserName').textContent  = name;
       document.getElementById('sbUserEmail').textContent = user.email || '';
       loadChats();
       if (!chats.length) { newChat(); } else { activeChatId = chats[0].id; renderHistory(); renderMessages(); }
@@ -1019,34 +1058,34 @@ function renderBharatAgentSummary(subtasks){
 
   window.switchAuthTab = function(tab){
     const isIn = tab === 'signin';
-    document.getElementById('tabSignIn').classList.toggle('active', isIn);
+    document.getElementById('tabSignIn').classList.toggle('active',  isIn);
     document.getElementById('tabSignUp').classList.toggle('active', !isIn);
-    document.getElementById('formSignIn').style.display = isIn ? '' : 'none';
-    document.getElementById('formSignUp').style.display = isIn ? 'none' : '';
+    document.getElementById('formSignIn').style.display =  isIn ? '' : 'none';
+    document.getElementById('formSignUp').style.display = !isIn ? '' : 'none';
     clearAuthErr('siErr'); clearAuthErr('suErr');
   };
   window.authTogglePw = function(id, btn){
-    const inp = document.getElementById(id);
+    const inp   = document.getElementById(id);
     const hidden = inp.type === 'password';
-    inp.type = hidden ? 'text' : 'password';
+    inp.type     = hidden ? 'text' : 'password';
     btn.textContent = hidden ? '🙈' : '👁';
   };
-  function showAuthErr(id, msg){ const el=document.getElementById(id); el.textContent=msg; el.classList.add('on'); }
+  function showAuthErr(id, msg){ const el = document.getElementById(id); el.textContent = msg; el.classList.add('on'); }
   function clearAuthErr(id){ document.getElementById(id).classList.remove('on'); }
   function setLoading(btnId, loading, label){
-    const btn = document.getElementById(btnId);
+    const btn  = document.getElementById(btnId);
     btn.disabled = loading;
     btn.innerHTML = loading ? '<span class="auth-spin"></span>Please wait…' : label;
   }
   function friendlyError(err){
     const map = {
-      'auth/user-not-found':'No account found with this email.',
-      'auth/wrong-password':'Incorrect password.',
-      'auth/invalid-credential':'Incorrect email or password.',
-      'auth/email-already-in-use':'An account with this email already exists.',
-      'auth/weak-password':'Password should be at least 6 characters.',
-      'auth/invalid-email':'Please enter a valid email address.',
-      'auth/too-many-requests':'Too many attempts. Please try again later.',
+      'auth/user-not-found':       'No account found with this email.',
+      'auth/wrong-password':       'Incorrect password.',
+      'auth/invalid-credential':   'Incorrect email or password.',
+      'auth/email-already-in-use': 'An account with this email already exists.',
+      'auth/weak-password':        'Password should be at least 6 characters.',
+      'auth/invalid-email':        'Please enter a valid email address.',
+      'auth/too-many-requests':    'Too many attempts. Please try again later.',
     };
     return map[err.code] || err.message || 'Something went wrong. Please try again.';
   }
@@ -1055,7 +1094,7 @@ function renderBharatAgentSummary(subtasks){
     ev.preventDefault();
     clearAuthErr('siErr');
     const email = document.getElementById('siEmail').value.trim();
-    const pw = document.getElementById('siPw').value;
+    const pw    = document.getElementById('siPw').value;
     setLoading('siSubmit', true, 'Sign In');
     auth.signInWithEmailAndPassword(email, pw)
       .catch(err => showAuthErr('siErr', friendlyError(err)))
@@ -1065,9 +1104,9 @@ function renderBharatAgentSummary(subtasks){
   window.handleSignUp = function(ev){
     ev.preventDefault();
     clearAuthErr('suErr');
-    const name = document.getElementById('suName').value.trim();
+    const name  = document.getElementById('suName').value.trim();
     const email = document.getElementById('suEmail').value.trim();
-    const pw = document.getElementById('suPw').value;
+    const pw    = document.getElementById('suPw').value;
     setLoading('suSubmit', true, 'Create Account');
     auth.createUserWithEmailAndPassword(email, pw)
       .then(cred => cred.user.updateProfile({ displayName: name }))
@@ -1105,7 +1144,7 @@ function isAppInstalled(){
 
 window.addEventListener('beforeinstallprompt', (event) => {
   event.preventDefault();
-  if (isAppInstalled()) return; // safety net — never show if somehow already standalone
+  if (isAppInstalled()) return;
   deferredInstallPrompt = event;
   document.getElementById('installBtn')?.classList.add('show');
 });
@@ -1132,8 +1171,6 @@ window.installPWA = async function(){
   }
 };
 
-// Belt-and-suspenders: if this load IS the installed app running in
-// standalone mode, force the button hidden regardless of anything else.
 if (isAppInstalled()) {
   document.getElementById('installBtn')?.classList.remove('show');
 }
@@ -1146,10 +1183,7 @@ if (isAppInstalled()) {
    touching localStorage/sessionStorage — so the
    Firebase auth session and chat history (both kept
    in localStorage, see CHAT STORAGE above) survive
-   completely untouched across the reload. A SW update
-   only replaces cached network assets; it never has
-   access to — and never calls — localStorage.clear(),
-   sessionStorage.clear(), or signOut().
+   completely untouched across the reload.
 ══════════════════════════════════════════ */
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
